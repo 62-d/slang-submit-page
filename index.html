@@ -344,6 +344,19 @@
             })
         });
         const result = await response.json();
+        async function callCozeWorkflow(workflowId, parameters) {
+    const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${PAT}` },
+        body: JSON.stringify({ workflow_id: workflowId, parameters })
+    });
+    const result = await response.json();
+    console.log('Coze API 返回:', result);   // 👈 添加这一行
+    if (!response.ok || result.code !== 0) {
+        throw new Error(result.msg || `请求失败 code=${result.code}`);
+    }
+    return result.data;
+}
         if (!response.ok || result.code !== 0) {
             throw new Error(result.msg || `请求失败 code=${result.code}`);
         }
