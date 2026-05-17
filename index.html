@@ -369,8 +369,8 @@
 
         try {
             const data = await callCozeWorkflow(QUERY_WORKFLOW_ID, { slang: slang });
-            // 根据你实际工作流返回结构，通常 translation 在 data.output 或 data.result
-            const translation = data.outputList || data.result || '暂时没找到这个词的解释，欢迎提交新词～';
+            // 根据你实际工作流返回结构，通常 definition 在 data.output 或 data.result
+            const definition = data.outputList || data.result || '暂时没找到这个词的解释，欢迎提交新词～';
             resultText.innerHTML = `“${slang}”  ${definition}`;
         } catch (err) {
             console.error(err);
