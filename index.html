@@ -325,7 +325,7 @@
     // ===================== 请替换为你的实际凭证 =====================
     const QUERY_WORKFLOW_ID = "7638267826549932047";   // 查询工作流ID (数字)
     const SUBMIT_WORKFLOW_ID = "7638245914289029156"; // 提交工作流ID (数字)
-    const PAT = "pat_Kq1eAKUjKs2sn0nK1QdZCilvvfePQ7OoyscswJcIrwKJnOmvfpj4CU4eoWaJ3GIH";                               // 个人访问令牌
+    const PAT = "pat_UaGaQmVZaIVdwlEybwAcjW2WVheYgLbE4v63e6IEYIQHTf6H5uiEsWSGB7xnRGyH";                               // 个人访问令牌
     // ===============================================================
 
     const API_URL = "https://api.coze.cn/v1/workflow/run";
@@ -344,19 +344,6 @@
             })
         });
         const result = await response.json();
-        async function callCozeWorkflow(workflowId, parameters) {
-    const response = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${PAT}` },
-        body: JSON.stringify({ workflow_id: workflowId, parameters })
-    });
-    const result = await response.json();
-    console.log('Coze API 返回:', result);   // 👈 添加这一行
-    if (!response.ok || result.code !== 0) {
-        throw new Error(result.msg || `请求失败 code=${result.code}`);
-    }
-    return result.data;
-}
         if (!response.ok || result.code !== 0) {
             throw new Error(result.msg || `请求失败 code=${result.code}`);
         }
@@ -383,8 +370,8 @@
         try {
             const data = await callCozeWorkflow(QUERY_WORKFLOW_ID, { slang: slang });
             // 根据你实际工作流返回结构，通常 translation 在 data.output 或 data.result
-            const translation = data.output || data.result || '暂时没找到这个词的解释，欢迎提交新词～';
-            resultText.innerHTML = `“${slang}”  ${translation}`;
+            const translation = data.outputList || data.result || '暂时没找到这个词的解释，欢迎提交新词～';
+            resultText.innerHTML = `“${slang}”  ${definition}`;
         } catch (err) {
             console.error(err);
             resultText.innerHTML = `❄️ 查询失败：${err.message || '小兔网络迷路了，稍后再试～'}`;
