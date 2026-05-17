@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>职场黑话 · 审核后台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #f9f7f5;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: #3a2c2a;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .card {
+            background: white;
+            border-radius: 28px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
+            vertical-align: middle;
+        }
+        th {
+            background: #faf6f2;
+            font-weight: 600;
+            color: #5a4a42;
+        }
+        .btn {
+            padding: 6px 16px;
+            border-radius: 40px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.2s;
+            margin-right: 8px;
+        }
+        .btn-approve {
+            background: #4caf50;
+            color: white;
+        }
+        .btn-approve:hover {
+            background: #45a049;
+        }
+        .btn-reject {
+            background: #f44336;
+            color: white;
+        }
+        .btn-reject:hover {
+            background: #d32f2f;
+        }
+        .loader {
+            text-align: center;
+            padding: 3rem;
+            color: #888;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #323232;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: 0.3s;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🐇 职场黑话 · 审核小窝</h1>
+    <div class="card">
+        <div id="pendingArea">
+            <div class="loader">🍃 加载待审核词条中...</div>
+        </div>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+    // ========== 请替换为你的真实凭证 ==========
+    const PAT = "pat_UaGaQmVZaIVdwlEybwAcjW2WVheYgLbE4v63e6IEYIQHTf6H5uiEsWSGB7xnRGyH";                           // Coze Personal Access Token
+    const LIST_WORKFLOW_ID = "7640840797645996068";   // get_pending_list 工作流ID
+    const APPROVE_WORKFLOW_ID = "7640841311201034292"; // approve_slang 工作流ID
+    const REJECT_WORKFLOW_ID = "7640843687580287027";   // reject_slang 工作流ID
+    // ==========================================
+
+    const API_URL = "https://api.coze.cn/v1/workflow/run";
+
+    async function callWorkflow(workflowId, parameters = {}) {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${PAT}`
+            },
+            body: JSON.stringify({ workflow_id: workflowId, parameters })
+        });
+        const result = await response.json();
+        if (!response.ok || result.code !== 0) {
+            throw new Error(result.msg || `请求失败 code=${result.code}`);
+        }
+        return result.data;
+    }
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.style.backgroundColor = isError ? '#d32f2f' : '#323232';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    async function loadPendingList() {
+        const container = document.getElementById('pendingArea');
+        container.innerHTML = '<div class="loader">⏳ 加载中...</div>';
+        try {
+            const data = await callWorkflow(LIST_WORKFLOW_ID, {});
+            // 假设工作流返回的数据在 data.output 或 data 直接是数组
+            let records = data.output || data;
+            if (!Array.isArray(records)) records = [];
+            if (records.length === 0) {
+                container.innerHTML = '<div class="loader">✨ 暂无待审核词条 ✨</div>';
+                return;
+            }
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <thead>
+                    <tr><th>ID</th><th>黑话</th><th>大白话</th><th>提交者</th><th>提交时间</th><th>操作</th></tr>
+                </thead>
+                <tbody id="pendingTableBody"></tbody>
+            `;
+            container.innerHTML = '';
+            container.appendChild(table);
+            const tbody = document.getElementById('pendingTableBody');
+            for (const rec of records) {
+                const row = tbody.insertRow();
+                row.insertCell(0).textContent = rec.id;
+                row.insertCell(1).textContent = rec.slang;
+                row.insertCell(2).textContent = rec.definition;
+                row.insertCell(3).textContent = rec.submitter || '匿名';
+                row.insertCell(4).textContent = rec.created_at ? new Date(rec.created_at).toLocaleString() : '';
+                const cellActions = row.insertCell(5);
+                const approveBtn = document.createElement('button');
+                approveBtn.textContent = '✓ 通过';
+                approveBtn.className = 'btn btn-approve';
+                approveBtn.onclick = () => handleApprove(rec.id);
+                const rejectBtn = document.createElement('button');
+                rejectBtn.textContent = '✗ 拒绝';
+                rejectBtn.className = 'btn btn-reject';
+                rejectBtn.onclick = () => handleReject(rec.id);
+                cellActions.appendChild(approveBtn);
+                cellActions.appendChild(rejectBtn);
+            }
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<div class="loader">❌ 加载失败: ${err.message}</div>`;
+        }
+    }
+
+    async function handleApprove(id) {
+        if (!confirm('通过后该词条将加入正式词库，确定吗？')) return;
+        try {
+            await callWorkflow(APPROVE_WORKFLOW_ID, { id: id });
+            showToast('✓ 已通过并加入词库');
+            loadPendingList(); // 刷新列表
+        } catch (err) {
+            showToast('操作失败: ' + err.message, true);
+        }
+    }
+
+    async function handleReject(id) {
+        if (!confirm('拒绝后将删除该词条，确定吗？')) return;
+        try {
+            await callWorkflow(REJECT_WORKFLOW_ID, { id: id });
+            showToast('✗ 已拒绝并删除');
+            loadPendingList();
+        } catch (err) {
+            showToast('操作失败: ' + err.message, true);
+        }
+    }
+
+    loadPendingList();
+</script>
+</body>
+</html>
